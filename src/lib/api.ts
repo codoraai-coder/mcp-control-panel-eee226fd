@@ -23,6 +23,23 @@ export interface HealthResponse {
   status: string;
 }
 
+// Content list response types
+export interface BlogItem {
+  id: string;
+  topic: string;
+  docx_url: string;
+  cover_url: string;
+  created_at: string;
+}
+
+export interface ImageItem {
+  id: string;
+  topic: string;
+  quote_text: string;
+  image_url: string;
+  created_at: string;
+}
+
 // API client with error handling
 export async function apiClient<T>(
   endpoint: string,
@@ -41,7 +58,9 @@ export async function apiClient<T>(
     throw new Error(`API Error (${response.status}): ${errorText}`);
   }
 
-  return response.json();
+  // Handle empty responses (e.g., DELETE)
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
 }
 
 // Typed API functions
@@ -65,4 +84,14 @@ export const api = {
     }),
 
   healthCheck: () => apiClient<HealthResponse>("/health"),
+
+  // Content list endpoints
+  listBlogs: () => apiClient<BlogItem[]>("/api/v1/content/blogs"),
+  listImages: () => apiClient<ImageItem[]>("/api/v1/content/images"),
+
+  // Content delete endpoints
+  deleteBlog: (id: string) =>
+    apiClient<void>(`/api/v1/content/blogs/${id}`, { method: "DELETE" }),
+  deleteImage: (id: string) =>
+    apiClient<void>(`/api/v1/content/images/${id}`, { method: "DELETE" }),
 };
