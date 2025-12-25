@@ -6,7 +6,7 @@ import {
   BarChart3, 
   Settings,
   ChevronDown,
-  Zap
+  Leaf
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -47,15 +47,15 @@ export function AppSidebar() {
       <SidebarHeader className="p-4">
         {/* Logo */}
         <div className="flex items-center gap-2 mb-4">
-          <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center shadow-glow">
-            <Zap className="h-4 w-4 text-primary-foreground" />
+          <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center shadow-glow animate-glow">
+            <Leaf className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="font-bold text-lg text-sidebar-foreground">MCP Hub</span>
+          <span className="font-bold text-lg text-gradient-emerald">MCP Hub</span>
         </div>
         
         {/* Workspace Selector */}
         <DropdownMenu>
-          <DropdownMenuTrigger className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-sidebar-accent hover:bg-sidebar-accent/80 transition-colors">
+          <DropdownMenuTrigger className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-sidebar-accent hover:bg-sidebar-accent/80 transition-colors border border-sidebar-border">
             <span className="text-sm font-medium text-sidebar-foreground truncate">
               {selectedWorkspace.name}
             </span>
@@ -85,7 +85,7 @@ export function AppSidebar() {
                     <NavLink 
                       to={item.url} 
                       className="flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                      activeClassName="bg-primary/10 text-primary font-medium border-l-2 border-primary"
                     >
                       <item.icon className="h-5 w-5" />
                       <span>{item.title}</span>
@@ -99,8 +99,8 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-4">
-        <div className="px-3 py-2 rounded-lg bg-sidebar-accent/50">
-          <p className="text-xs text-muted-foreground">Master Control Program</p>
+        <div className="px-3 py-2 rounded-lg bg-primary/5 border border-primary/10">
+          <p className="text-xs text-primary font-medium">Master Control Program</p>
           <p className="text-xs text-muted-foreground">v1.0.0</p>
         </div>
       </SidebarFooter>
