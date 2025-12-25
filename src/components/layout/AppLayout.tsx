@@ -2,6 +2,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { Outlet } from "react-router-dom";
 import { Menu } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export function AppLayout() {
   return (
@@ -16,6 +17,7 @@ export function AppLayout() {
               <Menu className="h-5 w-5" />
             </SidebarTrigger>
             <div className="flex-1" />
+            <ThemeToggle />
           </header>
           
           {/* Main Content */}
