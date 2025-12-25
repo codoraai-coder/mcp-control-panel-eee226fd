@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { FileText, Image, FileEdit, Plus, Eye, Edit2, CheckCircle, Workflow } from "lucide-react";
+import { FileText, Image, FileEdit, Plus, Eye, Edit2, CheckCircle, Workflow, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
@@ -15,33 +15,23 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import type { Content, ContentStatus } from "@/types/mcp";
+import type { Content as ContentType } from "@/types/mcp";
+import { useGenerateMotivationalPost, useGenerateBlogPost } from "@/hooks/use-content-api";
 
-// Mock content data
-const mockBlogs: Content[] = [
-  { id: '1', type: 'blog', title: 'AI Trends 2025', description: 'Exploring the future of artificial intelligence...', status: 'approved', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: '2', type: 'blog', title: 'Building with MCP', description: 'How to leverage Master Control Program...', status: 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: '3', type: 'blog', title: 'Automation Best Practices', description: 'Learn workflow automation strategies...', status: 'posted', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-];
+// Initial content (will be replaced with API data later)
+const initialBlogs: ContentType[] = [];
+const initialImages: ContentType[] = [];
 
-const mockImages: Content[] = [
-  { id: '4', type: 'image', title: 'Product Hero Image', status: 'approved', thumbnailUrl: '/placeholder.svg', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: '5', type: 'image', title: 'Social Media Banner', status: 'used', thumbnailUrl: '/placeholder.svg', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-];
-
-const mockDrafts: Content[] = [
-  { id: '6', type: 'blog', title: 'Untitled Draft', description: 'Work in progress...', status: 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-];
-
-function ContentCard({ content, onAction }: { content: Content; onAction: (action: string, content: Content) => void }) {
+function ContentCard({ content, onAction }: { content: ContentType; onAction: (action: string, content: ContentType) => void }) {
+  const imageUrl = content.imageUrl || content.thumbnailUrl || content.coverUrl;
+  
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-shadow overflow-hidden">
       <CardContent className="p-4">
-        {content.type === 'image' && content.thumbnailUrl && (
+        {imageUrl && (
           <div className="aspect-video bg-muted rounded-lg mb-3 overflow-hidden">
-            <img src={content.thumbnailUrl} alt={content.title} className="w-full h-full object-cover" />
+            <img src={imageUrl} alt={content.title} className="w-full h-full object-cover" />
           </div>
         )}
         <div className="space-y-2">
@@ -49,7 +39,10 @@ function ContentCard({ content, onAction }: { content: Content; onAction: (actio
             <h3 className="font-semibold text-foreground line-clamp-1">{content.title}</h3>
             <StatusBadge status={content.status} />
           </div>
-          {content.description && (
+          {content.quoteText && (
+            <p className="text-sm text-muted-foreground italic line-clamp-2">"{content.quoteText}"</p>
+          )}
+          {content.description && !content.quoteText && (
             <p className="text-sm text-muted-foreground line-clamp-2">{content.description}</p>
           )}
           <p className="text-xs text-muted-foreground">
@@ -57,11 +50,19 @@ function ContentCard({ content, onAction }: { content: Content; onAction: (actio
           </p>
           
           {/* Actions */}
-          <div className="flex items-center gap-2 pt-2">
+          <div className="flex items-center gap-2 pt-2 flex-wrap">
             <Button variant="ghost" size="sm" onClick={() => onAction('view', content)}>
               <Eye className="h-4 w-4 mr-1" />
               View
             </Button>
+            {content.docxUrl && (
+              <Button variant="ghost" size="sm" asChild>
+                <a href={content.docxUrl} target="_blank" rel="noopener noreferrer">
+                  <Download className="h-4 w-4 mr-1" />
+                  DOCX
+                </a>
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={() => onAction('edit', content)}>
               <Edit2 className="h-4 w-4 mr-1" />
               Edit
@@ -85,21 +86,66 @@ function ContentCard({ content, onAction }: { content: Content; onAction: (actio
   );
 }
 
-function GenerateDialog({ type, onGenerate }: { type: 'blog' | 'image'; onGenerate: (data: { title: string; prompt: string }) => void }) {
-  const [title, setTitle] = useState("");
-  const [prompt, setPrompt] = useState("");
+function GenerateDialog({ 
+  type, 
+  onSuccess 
+}: { 
+  type: 'blog' | 'image'; 
+  onSuccess: (content: ContentType) => void;
+}) {
+  const [topic, setTopic] = useState("");
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+
+  const generateImage = useGenerateMotivationalPost();
+  const generateBlog = useGenerateBlogPost();
+
+  const isLoading = generateImage.isPending || generateBlog.isPending;
 
   const handleSubmit = async () => {
-    setLoading(true);
-    // Simulate MCP workflow trigger
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    onGenerate({ title, prompt });
-    setLoading(false);
-    setOpen(false);
-    setTitle("");
-    setPrompt("");
+    if (!topic.trim()) return;
+
+    try {
+      if (type === 'image') {
+        const result = await generateImage.mutateAsync(topic);
+        const newContent: ContentType = {
+          id: crypto.randomUUID(),
+          type: 'image',
+          title: result.topic,
+          quoteText: result.quote_text,
+          imageUrl: result.image_url,
+          thumbnailUrl: result.image_url,
+          status: 'approved',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        onSuccess(newContent);
+        toast.success('Motivational image generated!');
+      } else {
+        const result = await generateBlog.mutateAsync(topic);
+        const newContent: ContentType = {
+          id: crypto.randomUUID(),
+          type: 'blog',
+          title: result.topic,
+          coverUrl: result.cover_url,
+          thumbnailUrl: result.cover_url,
+          docxUrl: result.docx_url,
+          status: 'approved',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        onSuccess(newContent);
+        toast.success('Blog post generated!', {
+          description: 'Download the DOCX file to view the full content.',
+        });
+      }
+      setOpen(false);
+      setTopic("");
+    } catch (error) {
+      console.error('Generation failed:', error);
+      toast.error('Generation failed', {
+        description: error instanceof Error ? error.message : 'Please try again later.',
+      });
+    }
   };
 
   return (
@@ -112,48 +158,45 @@ function GenerateDialog({ type, onGenerate }: { type: 'blog' | 'image'; onGenera
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Generate {type === 'blog' ? 'Blog Post' : 'Image'}</DialogTitle>
+          <DialogTitle>
+            Generate {type === 'blog' ? 'RAG Blog Post' : 'Motivational Image'}
+          </DialogTitle>
           <DialogDescription>
-            MCP will run a workflow to generate your content
+            {type === 'blog' 
+              ? 'Enter a topic and we\'ll generate a comprehensive blog post with RAG.'
+              : 'Enter a topic to generate a motivational quote image.'}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
+            <Label htmlFor="topic">Topic</Label>
             <Input
-              id="title"
-              placeholder={type === 'blog' ? 'e.g., AI in 2025' : 'e.g., Product Hero Image'}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="prompt">Prompt / Instructions</Label>
-            <Textarea
-              id="prompt"
+              id="topic"
               placeholder={type === 'blog' 
-                ? 'Describe what the blog should cover...' 
-                : 'Describe the image you want to generate...'}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              rows={4}
+                ? 'e.g., The Future of AI in Healthcare' 
+                : 'e.g., Success and perseverance'}
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              disabled={isLoading}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
+            Cancel
+          </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={!title || !prompt || loading}
+            disabled={!topic.trim() || isLoading}
             className="gradient-primary text-primary-foreground"
           >
-            {loading ? (
+            {isLoading ? (
               <span className="flex items-center gap-2">
-                <span className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                Running MCP...
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
               </span>
             ) : (
-              'Generate via MCP'
+              'Generate'
             )}
           </Button>
         </DialogFooter>
@@ -163,10 +206,17 @@ function GenerateDialog({ type, onGenerate }: { type: 'blog' | 'image'; onGenera
 }
 
 export default function Content() {
-  const handleAction = (action: string, content: Content) => {
+  const [blogs, setBlogs] = useState<ContentType[]>(initialBlogs);
+  const [images, setImages] = useState<ContentType[]>(initialImages);
+
+  const handleAction = (action: string, content: ContentType) => {
     switch (action) {
       case 'view':
-        toast.info(`Viewing: ${content.title}`);
+        if (content.imageUrl || content.thumbnailUrl) {
+          window.open(content.imageUrl || content.thumbnailUrl, '_blank');
+        } else {
+          toast.info(`Viewing: ${content.title}`);
+        }
         break;
       case 'edit':
         toast.info(`Editing: ${content.title}`);
@@ -180,10 +230,12 @@ export default function Content() {
     }
   };
 
-  const handleGenerate = (data: { title: string; prompt: string }) => {
-    toast.success(`MCP workflow started for: ${data.title}`, {
-      description: 'Check the Dashboard for job status',
-    });
+  const handleImageGenerated = (content: ContentType) => {
+    setImages(prev => [content, ...prev]);
+  };
+
+  const handleBlogGenerated = (content: ContentType) => {
+    setBlogs(prev => [content, ...prev]);
   };
 
   return (
@@ -193,7 +245,7 @@ export default function Content() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Content</h1>
           <p className="text-muted-foreground mt-1">
-            Manage your generated content
+            Generate and manage your AI content
           </p>
         </div>
       </div>
@@ -219,41 +271,53 @@ export default function Content() {
 
         <TabsContent value="blogs" className="space-y-4">
           <div className="flex justify-end">
-            <GenerateDialog type="blog" onGenerate={handleGenerate} />
+            <GenerateDialog type="blog" onSuccess={handleBlogGenerated} />
           </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {mockBlogs.map((blog) => (
-              <ContentCard key={blog.id} content={blog} onAction={handleAction} />
-            ))}
-          </div>
+          {blogs.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {blogs.map((blog) => (
+                <ContentCard key={blog.id} content={blog} onAction={handleAction} />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground mb-4">No blog posts yet</p>
+                <p className="text-sm text-muted-foreground">Generate your first RAG blog post above</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="images" className="space-y-4">
           <div className="flex justify-end">
-            <GenerateDialog type="image" onGenerate={handleGenerate} />
+            <GenerateDialog type="image" onSuccess={handleImageGenerated} />
           </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {mockImages.map((image) => (
-              <ContentCard key={image.id} content={image} onAction={handleAction} />
-            ))}
-          </div>
+          {images.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {images.map((image) => (
+                <ContentCard key={image.id} content={image} onAction={handleAction} />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Image className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground mb-4">No images yet</p>
+                <p className="text-sm text-muted-foreground">Generate your first motivational image above</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="drafts" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {mockDrafts.length > 0 ? (
-              mockDrafts.map((draft) => (
-                <ContentCard key={draft.id} content={draft} onAction={handleAction} />
-              ))
-            ) : (
-              <Card className="col-span-full">
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <FileEdit className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No drafts yet</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <FileEdit className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No drafts yet</p>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
