@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Image, FileEdit, Plus, Eye, Edit2, CheckCircle, Workflow, Download, Loader2 } from "lucide-react";
+import { FileText, Image, FileEdit, Plus, Eye, Edit2, CheckCircle, Workflow, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,7 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import type { Content as ContentType } from "@/types/mcp";
-import { useGenerateMotivationalPost, useGenerateBlogPost } from "@/hooks/use-content-api";
+import { useGenerationJobs } from "@/contexts/GenerationJobsContext";
+import { GeneratingJobsPanel } from "@/components/content/GeneratingJobsPanel";
 
 // Initial content (will be replaced with API data later)
 const initialBlogs: ContentType[] = [];
@@ -88,64 +89,27 @@ function ContentCard({ content, onAction }: { content: ContentType; onAction: (a
 
 function GenerateDialog({ 
   type, 
-  onSuccess 
+  onClose 
 }: { 
   type: 'blog' | 'image'; 
-  onSuccess: (content: ContentType) => void;
+  onClose: () => void;
 }) {
   const [topic, setTopic] = useState("");
   const [open, setOpen] = useState(false);
+  const { startBlogGeneration, startImageGeneration } = useGenerationJobs();
 
-  const generateImage = useGenerateMotivationalPost();
-  const generateBlog = useGenerateBlogPost();
-
-  const isLoading = generateImage.isPending || generateBlog.isPending;
-
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!topic.trim()) return;
 
-    try {
-      if (type === 'image') {
-        const result = await generateImage.mutateAsync(topic);
-        const newContent: ContentType = {
-          id: crypto.randomUUID(),
-          type: 'image',
-          title: result.topic,
-          quoteText: result.quote_text,
-          imageUrl: result.image_url,
-          thumbnailUrl: result.image_url,
-          status: 'approved',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        onSuccess(newContent);
-        toast.success('Motivational image generated!');
-      } else {
-        const result = await generateBlog.mutateAsync(topic);
-        const newContent: ContentType = {
-          id: crypto.randomUUID(),
-          type: 'blog',
-          title: result.topic,
-          coverUrl: result.cover_url,
-          thumbnailUrl: result.cover_url,
-          docxUrl: result.docx_url,
-          status: 'approved',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        onSuccess(newContent);
-        toast.success('Blog post generated!', {
-          description: 'Download the DOCX file to view the full content.',
-        });
-      }
-      setOpen(false);
-      setTopic("");
-    } catch (error) {
-      console.error('Generation failed:', error);
-      toast.error('Generation failed', {
-        description: error instanceof Error ? error.message : 'Please try again later.',
-      });
+    if (type === 'image') {
+      startImageGeneration(topic);
+    } else {
+      startBlogGeneration(topic);
     }
+    
+    setOpen(false);
+    setTopic("");
+    onClose();
   };
 
   return (
@@ -163,7 +127,7 @@ function GenerateDialog({
           </DialogTitle>
           <DialogDescription>
             {type === 'blog' 
-              ? 'Enter a topic and we\'ll generate a comprehensive blog post with RAG.'
+              ? 'Enter a topic and we\'ll generate a comprehensive blog post with RAG. This may take 5-10 minutes - you can continue using the app while it generates.'
               : 'Enter a topic to generate a motivational quote image.'}
           </DialogDescription>
         </DialogHeader>
@@ -177,27 +141,24 @@ function GenerateDialog({
                 : 'e.g., Success and perseverance'}
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
-              disabled={isLoading}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && topic.trim()) {
+                  handleSubmit();
+                }
+              }}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
+          <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={!topic.trim() || isLoading}
+            disabled={!topic.trim()}
             className="gradient-primary text-primary-foreground"
           >
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generating...
-              </span>
-            ) : (
-              'Generate'
-            )}
+            Start Generating
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -230,12 +191,13 @@ export default function Content() {
     }
   };
 
-  const handleImageGenerated = (content: ContentType) => {
-    setImages(prev => [content, ...prev]);
-  };
-
-  const handleBlogGenerated = (content: ContentType) => {
-    setBlogs(prev => [content, ...prev]);
+  const handleContentGenerated = (content: ContentType) => {
+    if (content.type === 'image') {
+      setImages(prev => [content, ...prev]);
+    } else {
+      setBlogs(prev => [content, ...prev]);
+    }
+    toast.success(`${content.type === 'blog' ? 'Blog' : 'Image'} added to your content!`);
   };
 
   return (
@@ -249,6 +211,9 @@ export default function Content() {
           </p>
         </div>
       </div>
+
+      {/* Generation Jobs Panel */}
+      <GeneratingJobsPanel onContentGenerated={handleContentGenerated} />
 
       {/* Tabs */}
       <Tabs defaultValue="blogs" className="space-y-4">
@@ -271,7 +236,7 @@ export default function Content() {
 
         <TabsContent value="blogs" className="space-y-4">
           <div className="flex justify-end">
-            <GenerateDialog type="blog" onSuccess={handleBlogGenerated} />
+            <GenerateDialog type="blog" onClose={() => {}} />
           </div>
           {blogs.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -292,7 +257,7 @@ export default function Content() {
 
         <TabsContent value="images" className="space-y-4">
           <div className="flex justify-end">
-            <GenerateDialog type="image" onSuccess={handleImageGenerated} />
+            <GenerateDialog type="image" onClose={() => {}} />
           </div>
           {images.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
