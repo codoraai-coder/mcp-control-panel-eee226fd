@@ -25,6 +25,11 @@ export interface Content {
   createdAt: string;
   updatedAt: string;
   workflowId?: string;
+  // API response fields
+  quoteText?: string;      // For motivational posts
+  docxUrl?: string;        // For blog posts
+  coverUrl?: string;       // Blog cover image
+  imageUrl?: string;       // Generated image URL
 }
 
 export interface WorkflowStep {
