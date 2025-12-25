@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import type { Content as ContentType } from "@/types/mcp";
 import { useGenerationJobs } from "@/contexts/GenerationJobsContext";
 import { GeneratingJobsPanel } from "@/components/content/GeneratingJobsPanel";
+import { DocxPreviewDialog } from "@/components/content/DocxPreviewDialog";
 
 // Initial content (will be replaced with API data later)
 const initialBlogs: ContentType[] = [];
@@ -169,11 +170,16 @@ function GenerateDialog({
 export default function Content() {
   const [blogs, setBlogs] = useState<ContentType[]>(initialBlogs);
   const [images, setImages] = useState<ContentType[]>(initialImages);
+  const [previewContent, setPreviewContent] = useState<ContentType | null>(null);
 
   const handleAction = (action: string, content: ContentType) => {
     switch (action) {
       case 'view':
-        if (content.imageUrl || content.thumbnailUrl) {
+        if (content.docxUrl) {
+          // Open DOCX preview dialog for blog posts
+          setPreviewContent(content);
+        } else if (content.imageUrl || content.thumbnailUrl) {
+          // Open image in new tab
           window.open(content.imageUrl || content.thumbnailUrl, '_blank');
         } else {
           toast.info(`Viewing: ${content.title}`);
@@ -285,6 +291,16 @@ export default function Content() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* DOCX Preview Dialog */}
+      {previewContent?.docxUrl && (
+        <DocxPreviewDialog
+          open={!!previewContent}
+          onOpenChange={(open) => !open && setPreviewContent(null)}
+          title={previewContent.title}
+          docxUrl={previewContent.docxUrl}
+        />
+      )}
     </div>
   );
 }
