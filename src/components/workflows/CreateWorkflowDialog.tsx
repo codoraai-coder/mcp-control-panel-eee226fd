@@ -91,6 +91,14 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
       { name: "goal", label: "Optimization Goal", type: "select", options: ["engagement", "clarity", "seo", "brevity"] },
     ],
   },
+  {
+    value: "post_to_x",
+    label: "Post to X (Twitter)",
+    configFields: [
+      { name: "use_previous_content", label: "Use Generated Content", type: "checkbox", placeholder: "Use content from previous step" },
+      { name: "custom_text", label: "Custom Post Text (Optional)", type: "textarea", placeholder: "Override with custom text..." },
+    ],
+  },
 ];
 
 interface WorkflowStepState {

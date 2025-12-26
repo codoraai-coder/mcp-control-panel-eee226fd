@@ -305,3 +305,37 @@ export interface DeleteResponse {
 export interface ChatResponse {
   text: string;
 }
+
+// === POSTING JOBS ===
+
+export type PostingStatus = 'ready' | 'awaiting_user' | 'posted' | 'failed';
+
+export interface FormattingHints {
+  max_length: number;
+  supports_markdown: boolean;
+  supports_images: boolean;
+  supports_videos: boolean;
+}
+
+export interface PreparedPayload {
+  content_id: string;
+  platform: string;
+  post_text: string;
+  image_url?: string;
+  hashtags?: string[];
+  formatting_hints: FormattingHints;
+  created_at: string;
+}
+
+export interface PostingJob {
+  id: string;
+  workspace_id: string;
+  content_id: string;
+  platform: string;
+  status: PostingStatus;
+  prepared_payload: PreparedPayload;
+  error_message: string | null;
+  retry_count: number;
+  created_at: string;
+  posted_at: string | null;
+}
