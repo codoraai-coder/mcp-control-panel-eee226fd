@@ -54,7 +54,7 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
   {
     value: "blog_generator",
     label: "Blog Generator",
-    produces: ["topic", "blog_content", "cover_image", "docx_url", "content_id"],
+    produces: ["topic", "blog_content", "cover_image", "docx_url", "id"],
     consumes: [],
     configFields: [
       { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., AI trends in 2025" },
@@ -64,7 +64,7 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
   {
     value: "image_generator",
     label: "Image Generator",
-    produces: ["topic", "quote_text", "image_url", "content_id"],
+    produces: ["topic", "quote_text", "image_url", "id"],
     consumes: ["topic"],
     configFields: [
       { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., Motivation for success", canUseReference: true, referenceTypes: ["topic"] },
@@ -73,7 +73,7 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
   {
     value: "caption_generator",
     label: "Caption Generator",
-    produces: ["topic", "caption", "content_id"],
+    produces: ["topic", "caption", "id"],
     consumes: ["topic", "blog_content"],
     configFields: [
       { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., Product launch announcement", canUseReference: true, referenceTypes: ["topic", "blog_content"] },
@@ -85,7 +85,7 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
   {
     value: "hashtag_generator",
     label: "Hashtag Generator",
-    produces: ["topic", "hashtags", "content_id"],
+    produces: ["topic", "hashtags", "id"],
     consumes: ["topic", "caption"],
     configFields: [
       { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., Digital marketing", canUseReference: true, referenceTypes: ["topic", "caption"] },
@@ -95,7 +95,7 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
   {
     value: "content_optimizer",
     label: "Content Optimizer",
-    produces: ["optimized_content", "content_id"],
+    produces: ["optimized_content", "id"],
     consumes: ["blog_content", "caption"],
     configFields: [
       { name: "content", label: "Content to Optimize", type: "textarea", required: true, placeholder: "Paste your content here...", canUseReference: true, referenceTypes: ["blog_content", "caption", "optimized_content"] },
@@ -106,7 +106,7 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
     value: "post_to_x",
     label: "Post to X (Twitter)",
     produces: [],
-    consumes: ["caption", "optimized_content", "hashtags", "image_url", "content_id"],
+    consumes: ["caption", "optimized_content", "hashtags", "image_url", "id"],
     requiresContentFromPreviousStep: true,
     configFields: [
       { name: "custom_text", label: "Custom Post Text (Optional)", type: "textarea", placeholder: "Override with custom text...", canUseReference: true, referenceTypes: ["caption", "optimized_content"] },
@@ -248,12 +248,12 @@ export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialo
       // Always ensure workspace_id is set with hardcoded fallback
       config.workspace_id = workspaceId || DEFAULT_WORKSPACE_ID;
       
-      // Auto-reference content_id from previous step if not manually set
+      // Auto-reference id from previous step if not manually set (database column is 'id', not 'content_id')
       if (!config.content_id && !config.content_id_source && index > 0) {
         config.content_id_source = {
           type: 'step_reference',
           step_index: index - 1,
-          field: 'content_id'
+          field: 'id'
         };
       }
     }
