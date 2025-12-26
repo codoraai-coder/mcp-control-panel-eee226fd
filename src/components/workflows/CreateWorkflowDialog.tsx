@@ -53,7 +53,7 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
   {
     value: "blog_generator",
     label: "Blog Generator",
-    produces: ["topic", "blog_content", "cover_image", "docx_url"],
+    produces: ["topic", "blog_content", "cover_image", "docx_url", "content_id"],
     consumes: [],
     configFields: [
       { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., AI trends in 2025" },
@@ -63,7 +63,7 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
   {
     value: "image_generator",
     label: "Image Generator",
-    produces: ["topic", "quote_text", "image_url"],
+    produces: ["topic", "quote_text", "image_url", "content_id"],
     consumes: ["topic"],
     configFields: [
       { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., Motivation for success", canUseReference: true, referenceTypes: ["topic"] },
@@ -72,7 +72,7 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
   {
     value: "caption_generator",
     label: "Caption Generator",
-    produces: ["topic", "caption"],
+    produces: ["topic", "caption", "content_id"],
     consumes: ["topic", "blog_content"],
     configFields: [
       { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., Product launch announcement", canUseReference: true, referenceTypes: ["topic", "blog_content"] },
@@ -84,7 +84,7 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
   {
     value: "hashtag_generator",
     label: "Hashtag Generator",
-    produces: ["topic", "hashtags"],
+    produces: ["topic", "hashtags", "content_id"],
     consumes: ["topic", "caption"],
     configFields: [
       { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., Digital marketing", canUseReference: true, referenceTypes: ["topic", "caption"] },
@@ -94,7 +94,7 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
   {
     value: "content_optimizer",
     label: "Content Optimizer",
-    produces: ["optimized_content"],
+    produces: ["optimized_content", "content_id"],
     consumes: ["blog_content", "caption"],
     configFields: [
       { name: "content", label: "Content to Optimize", type: "textarea", required: true, placeholder: "Paste your content here...", canUseReference: true, referenceTypes: ["blog_content", "caption", "optimized_content"] },
@@ -105,9 +105,9 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
     value: "post_to_x",
     label: "Post to X (Twitter)",
     produces: [],
-    consumes: ["caption", "optimized_content", "hashtags", "image_url"],
+    consumes: ["caption", "optimized_content", "hashtags", "image_url", "content_id"],
     configFields: [
-      { name: "use_previous_content", label: "Use Generated Content", type: "checkbox", placeholder: "Use content from previous step" },
+      { name: "content_id", label: "Content to Post", type: "text", required: true, placeholder: "Content ID from previous step", canUseReference: true, referenceTypes: ["content_id"] },
       { name: "custom_text", label: "Custom Post Text (Optional)", type: "textarea", placeholder: "Override with custom text...", canUseReference: true, referenceTypes: ["caption", "optimized_content"] },
     ],
   },
