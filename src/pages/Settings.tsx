@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { User, Building2, Link2, Linkedin, Twitter, Instagram, Check, X, Save } from "lucide-react";
+import { User, Building2, Link2, Linkedin, Twitter, Instagram, Check, X, Save, Plus, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 const connectedPlatforms = [
   { id: 'linkedin', name: 'LinkedIn', icon: Linkedin, connected: true, account: '@mycompany' },
@@ -15,11 +16,18 @@ const connectedPlatforms = [
 ];
 
 export default function Settings() {
-  const [workspaceName, setWorkspaceName] = useState('My Workspace');
+  const { workspace, workspaceId, isLoading: workspaceLoading, error: workspaceError, setWorkspaceId, createWorkspace } = useWorkspace();
+  
   const [userName, setUserName] = useState('John Doe');
   const [email, setEmail] = useState('john@example.com');
   const [notifications, setNotifications] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Workspace form states
+  const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [newOwnerId, setNewOwnerId] = useState('');
+  const [manualWorkspaceId, setManualWorkspaceId] = useState('');
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
@@ -36,6 +44,34 @@ export default function Settings() {
 
   const handleDisconnect = (platformName: string) => {
     toast.success(`Disconnected from ${platformName}`);
+  };
+
+  const handleCreateWorkspace = async () => {
+    if (!newWorkspaceName.trim() || !newOwnerId.trim()) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+    setCreatingWorkspace(true);
+    try {
+      const ws = await createWorkspace(newWorkspaceName.trim(), newOwnerId.trim());
+      toast.success(`Workspace "${ws.name}" created successfully!`);
+      setNewWorkspaceName('');
+      setNewOwnerId('');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create workspace');
+    } finally {
+      setCreatingWorkspace(false);
+    }
+  };
+
+  const handleSelectWorkspace = () => {
+    if (!manualWorkspaceId.trim()) {
+      toast.error('Please enter a workspace ID');
+      return;
+    }
+    setWorkspaceId(manualWorkspaceId.trim());
+    setManualWorkspaceId('');
+    toast.success('Workspace ID set - loading workspace...');
   };
 
   return (
@@ -57,28 +93,121 @@ export default function Settings() {
           </CardTitle>
           <CardDescription>Manage your workspace settings</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="workspace-name">Workspace Name</Label>
-            <Input
-              id="workspace-name"
-              value={workspaceName}
-              onChange={(e) => setWorkspaceName(e.target.value)}
-              placeholder="My Workspace"
-            />
+        <CardContent className="space-y-6">
+          {/* Current Workspace Status */}
+          {workspaceLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading workspace...
+            </div>
+          ) : workspace ? (
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg border border-border bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Current Workspace</p>
+                    <p className="font-semibold text-lg">{workspace.name}</p>
+                  </div>
+                  <span className="flex items-center gap-1 text-sm text-success">
+                    <Check className="h-4 w-4" />
+                    Connected
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Workspace ID</Label>
+                <div className="flex items-center gap-2">
+                  <code className="px-3 py-2 rounded bg-muted text-sm font-mono flex-1">
+                    {workspace.id}
+                  </code>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    navigator.clipboard.writeText(workspace.id);
+                    toast.success('Copied to clipboard');
+                  }}>
+                    Copy
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 rounded-lg border border-destructive/50 bg-destructive/10 text-center">
+              <p className="font-medium text-destructive">No workspace selected</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Create a new workspace or enter an existing workspace ID below
+              </p>
+              {workspaceError && (
+                <p className="text-sm text-destructive mt-2">{workspaceError}</p>
+              )}
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Create New Workspace */}
+          <div className="space-y-4">
+            <h4 className="font-medium flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Create New Workspace
+            </h4>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="workspace-name">Workspace Name</Label>
+                <Input
+                  id="workspace-name"
+                  value={newWorkspaceName}
+                  onChange={(e) => setNewWorkspaceName(e.target.value)}
+                  placeholder="My Workspace"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="owner-id">Owner ID</Label>
+                <Input
+                  id="owner-id"
+                  value={newOwnerId}
+                  onChange={(e) => setNewOwnerId(e.target.value)}
+                  placeholder="user_123"
+                />
+              </div>
+            </div>
+            <Button 
+              onClick={handleCreateWorkspace}
+              disabled={creatingWorkspace || !newWorkspaceName.trim() || !newOwnerId.trim()}
+            >
+              {creatingWorkspace ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Create Workspace
+                </span>
+              )}
+            </Button>
           </div>
-          
-          <div className="space-y-2">
-            <Label>Workspace ID</Label>
-            <div className="flex items-center gap-2">
-              <code className="px-3 py-2 rounded bg-muted text-sm font-mono flex-1">
-                ws_abc123def456
-              </code>
-              <Button variant="outline" size="sm" onClick={() => {
-                navigator.clipboard.writeText('ws_abc123def456');
-                toast.success('Copied to clipboard');
-              }}>
-                Copy
+
+          <Separator />
+
+          {/* Select Existing Workspace */}
+          <div className="space-y-4">
+            <h4 className="font-medium flex items-center gap-2">
+              <ArrowRight className="h-4 w-4" />
+              Select Existing Workspace
+            </h4>
+            <div className="flex gap-2">
+              <Input
+                value={manualWorkspaceId}
+                onChange={(e) => setManualWorkspaceId(e.target.value)}
+                placeholder="Enter workspace ID (e.g., ws_abc123)"
+                className="flex-1"
+              />
+              <Button 
+                variant="outline"
+                onClick={handleSelectWorkspace}
+                disabled={!manualWorkspaceId.trim()}
+              >
+                Switch
               </Button>
             </div>
           </div>
