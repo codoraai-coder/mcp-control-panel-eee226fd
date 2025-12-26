@@ -22,9 +22,13 @@ export default function Posting() {
     markAsPosted,
     markAsFailed,
     retry,
+    schedule,
+    cancelSchedule,
     isMarkingPosted,
     isMarkingFailed,
     isRetrying,
+    isScheduling,
+    isCancellingSchedule,
   } = usePostingJobs(workspaceId);
 
   const [activeTab, setActiveTab] = useState<"ready" | "posted" | "failed">("ready");
@@ -38,7 +42,7 @@ export default function Posting() {
   const postedJobs = postedJobsQuery.data ?? [];
   const failedJobs = failedJobsQuery.data ?? [];
 
-  const isActionLoading = isMarkingPosted || isMarkingFailed || isRetrying;
+  const isActionLoading = isMarkingPosted || isMarkingFailed || isRetrying || isScheduling || isCancellingSchedule;
 
   const handleOpenComposer = (job: PostingJob) => {
     setSelectedJob(job);
@@ -89,6 +93,8 @@ export default function Posting() {
             onMarkPosted={markAsPosted}
             onMarkFailed={markAsFailed}
             onRetry={retry}
+            onSchedule={schedule}
+            onCancelSchedule={cancelSchedule}
             isLoading={isActionLoading}
           />
         ))}

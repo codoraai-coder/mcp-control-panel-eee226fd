@@ -281,6 +281,15 @@ const postingJobs = {
 
   retry: (jobId: string) =>
     apiClient<PostingJob>(`/api/posting-jobs/${jobId}/retry`, { method: 'POST' }),
+
+  schedule: (jobId: string, scheduledFor: string) =>
+    apiClient<PostingJob>(`/api/posting-jobs/${jobId}/schedule`, {
+      method: 'POST',
+      body: JSON.stringify({ scheduled_for: scheduledFor }),
+    }),
+
+  cancelSchedule: (jobId: string) =>
+    apiClient<PostingJob>(`/api/posting-jobs/${jobId}/cancel-schedule`, { method: 'POST' }),
 };
 
 // === UTILITY ===

@@ -66,6 +66,33 @@ export function usePostingJobs(workspaceId: string | undefined) {
     },
   });
 
+  // Schedule mutation
+  const scheduleMutation = useMutation({
+    mutationFn: ({ jobId, scheduledFor }: { jobId: string; scheduledFor: Date }) =>
+      api.postingJobs.schedule(jobId, scheduledFor.toISOString()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posting-jobs"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to schedule post", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    },
+  });
+
+  // Cancel schedule mutation
+  const cancelScheduleMutation = useMutation({
+    mutationFn: (jobId: string) => api.postingJobs.cancelSchedule(jobId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posting-jobs"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to cancel schedule", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    },
+  });
+
   return {
     readyJobs: readyJobsQuery.data ?? [],
     isLoading: readyJobsQuery.isLoading,
@@ -76,8 +103,13 @@ export function usePostingJobs(workspaceId: string | undefined) {
     markAsFailed: (jobId: string, errorMessage?: string) =>
       markFailedMutation.mutateAsync({ jobId, errorMessage }),
     retry: (jobId: string) => retryMutation.mutateAsync(jobId),
+    schedule: (jobId: string, scheduledFor: Date) =>
+      scheduleMutation.mutateAsync({ jobId, scheduledFor }),
+    cancelSchedule: (jobId: string) => cancelScheduleMutation.mutateAsync(jobId),
     isMarkingPosted: markPostedMutation.isPending,
     isMarkingFailed: markFailedMutation.isPending,
     isRetrying: retryMutation.isPending,
+    isScheduling: scheduleMutation.isPending,
+    isCancellingSchedule: cancelScheduleMutation.isPending,
   };
 }
