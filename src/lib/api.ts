@@ -25,6 +25,8 @@ import {
   CaptionConfig,
   HashtagConfig,
   ContentOptimizeConfig,
+  PostingJob,
+  PostingStatus,
 } from '@/types/mcp';
 
 // Main API for workspaces, workflows, jobs, content CRUD
@@ -254,6 +256,33 @@ const legacyContent = {
     generationApiClient<void>(`/api/v1/content/images/${id}`, { method: "DELETE" }),
 };
 
+// === POSTING JOBS API ===
+
+const postingJobs = {
+  getReady: (workspaceId: string, limit = 50) =>
+    apiClient<PostingJob[]>(`/api/posting-jobs/workspace/${workspaceId}/ready?limit=${limit}`),
+
+  getAll: (workspaceId: string, statusFilter?: PostingStatus, limit = 100) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (statusFilter) params.append('status_filter', statusFilter);
+    return apiClient<PostingJob[]>(`/api/posting-jobs/workspace/${workspaceId}/all?${params}`);
+  },
+
+  get: (jobId: string) =>
+    apiClient<PostingJob>(`/api/posting-jobs/${jobId}`),
+
+  markPosted: (jobId: string) =>
+    apiClient<PostingJob>(`/api/posting-jobs/${jobId}/mark-posted`, { method: 'POST' }),
+
+  markFailed: (jobId: string, errorMessage?: string) => {
+    const params = errorMessage ? `?error_message=${encodeURIComponent(errorMessage)}` : '';
+    return apiClient<PostingJob>(`/api/posting-jobs/${jobId}/mark-failed${params}`, { method: 'POST' });
+  },
+
+  retry: (jobId: string) =>
+    apiClient<PostingJob>(`/api/posting-jobs/${jobId}/retry`, { method: 'POST' }),
+};
+
 // === UTILITY ===
 
 // Health check uses generation server
@@ -286,6 +315,9 @@ export const api = {
 
   // Legacy content endpoints
   legacy: legacyContent,
+
+  // Posting jobs
+  postingJobs,
 
   // Utility
   healthCheck,
