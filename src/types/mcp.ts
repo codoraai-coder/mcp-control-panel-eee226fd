@@ -23,6 +23,20 @@ export interface CreateWorkspaceDto {
 
 // === WORKFLOW ===
 
+// Step reference for context-aware workflows
+export interface StepReference {
+  type: 'manual' | 'step_reference';
+  step_index?: number;  // 0-based index of source step
+  field?: string;       // Which output field to use
+  manual_value?: string | number | boolean;
+}
+
+// Tool I/O definition for context flow
+export interface ToolIODefinition {
+  produces: string[];  // What outputs this tool creates
+  consumes: string[];  // What inputs this tool can accept from previous steps
+}
+
 export interface WorkflowStep {
   id?: string;
   order: number;
