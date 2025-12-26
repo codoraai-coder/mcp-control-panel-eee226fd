@@ -58,8 +58,28 @@ export function PostingJobCard({
   
   const { prepared_payload: payload } = job;
   
-  const charCount = payload.post_text.length;
-  const maxChars = payload.formatting_hints.max_length;
+  // Defensive checks for potentially missing fields
+  if (!payload) {
+    return (
+      <Card className="overflow-hidden">
+        <CardContent className="p-4">
+          <p className="text-sm text-muted-foreground">Invalid job data</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Provide defaults for potentially missing fields
+  const formattingHints = payload.formatting_hints ?? {
+    max_length: 280,
+    supports_markdown: false,
+    supports_images: true,
+    supports_videos: true,
+  };
+
+  const postText = payload.post_text ?? "";
+  const charCount = postText.length;
+  const maxChars = formattingHints.max_length;
   const isOverLimit = charCount > maxChars;
 
   const isScheduled = !!job.scheduled_for;
@@ -67,7 +87,7 @@ export function PostingJobCard({
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(payload.post_text);
+      await navigator.clipboard.writeText(postText);
       setCopied(true);
       toast.success("Copied to clipboard!");
       setTimeout(() => setCopied(false), 2000);
@@ -161,9 +181,9 @@ export function PostingJobCard({
 
         {/* Post Content Preview */}
         <div className="p-4 rounded-lg bg-muted/50 space-y-3">
-          <p className="text-sm whitespace-pre-wrap">{payload.post_text}</p>
+          <p className="text-sm whitespace-pre-wrap">{postText}</p>
           
-          {payload.image_url && (
+          {payload?.image_url && (
             <div className="relative aspect-video w-full max-w-xs rounded-lg overflow-hidden bg-muted">
               <img
                 src={payload.image_url}
@@ -179,7 +199,7 @@ export function PostingJobCard({
             </div>
           )}
           
-          {payload.hashtags && payload.hashtags.length > 0 && (
+          {payload?.hashtags && payload.hashtags.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {payload.hashtags.map((tag) => (
                 <span
