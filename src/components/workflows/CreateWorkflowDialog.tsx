@@ -65,7 +65,14 @@ export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialo
         name: data.name,
         description: data.description || undefined,
         target_platform: data.target_platform,
-        steps: [],
+        steps: [
+          {
+            order: 1,
+            name: "Step 1",
+            tool_name: "placeholder",
+            config: {},
+          },
+        ],
       });
       toast.success("Workflow created successfully");
       form.reset();
