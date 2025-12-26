@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2, Plus } from "lucide-react";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import {
   DndContext,
   closestCenter,
@@ -106,8 +107,8 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
     label: "Post to X (Twitter)",
     produces: [],
     consumes: ["caption", "optimized_content", "hashtags", "image_url", "content_id"],
+    requiresContentFromPreviousStep: true,
     configFields: [
-      { name: "content_id", label: "Content to Post", type: "text", required: true, placeholder: "Content ID from previous step", canUseReference: true, referenceTypes: ["content_id"] },
       { name: "custom_text", label: "Custom Post Text (Optional)", type: "textarea", placeholder: "Override with custom text...", canUseReference: true, referenceTypes: ["caption", "optimized_content"] },
     ],
   },
@@ -134,6 +135,7 @@ interface CreateWorkflowDialogProps {
 
 export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialogProps) {
   const { createWorkflow, isCreating } = useWorkflows();
+  const { workspaceId } = useWorkspace();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [steps, setSteps] = useState<WorkflowStepState[]>([
     { id: generateId(), tool: "", config: {} },
@@ -234,6 +236,28 @@ export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialo
     return true;
   };
 
+  // Transform step config to auto-inject workspace_id and content_id reference for post_to_x
+  const transformStepConfig = (step: WorkflowStepState, index: number): Record<string, unknown> => {
+    const toolDef = AVAILABLE_TOOLS.find(t => t.value === step.tool);
+    const config = { ...step.config };
+    
+    // Auto-inject workspace_id and content_id reference for post_to_x
+    if (step.tool === 'post_to_x') {
+      config.workspace_id = workspaceId;
+      
+      // Auto-reference content_id from previous step if not manually set
+      if (!config.content_id && !config.content_id_source && index > 0) {
+        config.content_id_source = {
+          type: 'step_reference',
+          step_index: index - 1,
+          field: 'content_id'
+        };
+      }
+    }
+    
+    return config;
+  };
+
   const onSubmit = async (data: CreateWorkflowForm) => {
     if (!validateSteps()) {
       return;
@@ -249,7 +273,7 @@ export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialo
           order: index + 1,
           name: AVAILABLE_TOOLS.find((t) => t.value === step.tool)?.label || step.tool,
           tool_name: step.tool,
-          config: step.config,
+          config: transformStepConfig(step, index),
         })),
       });
       toast.success("Workflow created successfully");
