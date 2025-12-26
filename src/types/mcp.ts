@@ -1,75 +1,147 @@
 // MCP Hub Types - Master Control Program
 
-// Content states
-export type ContentStatus = 'draft' | 'approved' | 'used' | 'posted';
-export type ContentType = 'blog' | 'image';
+// === STRING LITERAL TYPES (for compatibility with existing code) ===
 
-// Job states
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type ContentType = 'blog' | 'image' | 'blog_post' | 'caption' | 'hashtags' | 'optimized_content';
+export type ContentStatus = 'draft' | 'approved' | 'used' | 'posted';
+export type SocialPlatform = 'linkedin' | 'twitter' | 'instagram' | 'facebook';
 
-// Core entities
+// === WORKSPACE ===
+
 export interface Workspace {
   id: string;
+  owner_user_id: string;
   name: string;
-  createdAt: string;
+  created_at: string;
 }
 
-export interface Content {
-  id: string;
-  type: ContentType;
-  title: string;
-  description?: string;
-  status: ContentStatus;
-  s3Url?: string;
-  thumbnailUrl?: string;
-  createdAt: string;
-  updatedAt: string;
-  workflowId?: string;
-  // API response fields
-  quoteText?: string;      // For motivational posts
-  docxUrl?: string;        // For blog posts
-  coverUrl?: string;       // Blog cover image
-  imageUrl?: string;       // Generated image URL
+export interface CreateWorkspaceDto {
+  owner_user_id: string;
+  name: string;
 }
+
+// === WORKFLOW ===
 
 export interface WorkflowStep {
-  id: string;
+  id?: string;
   order: number;
-  name: string;
-  toolName: string;
-  config: Record<string, unknown>;
+  name?: string;
+  tool_name?: string;
+  toolName?: string; // Legacy alias - use tool_name || toolName
+  config?: Record<string, unknown>;
 }
 
 export interface Workflow {
   id: string;
+  workspace_id?: string;
   name: string;
-  description: string;
-  targetPlatform?: string;
+  description?: string;
+  target_platform?: string;
+  targetPlatform?: string; // Legacy alias
   steps: WorkflowStep[];
-  lastRunAt?: string;
-  lastRunStatus?: JobStatus;
-  createdAt: string;
+  last_run_at?: string;
+  lastRunAt?: string; // Legacy alias
+  last_run_status?: JobStatus;
+  lastRunStatus?: JobStatus; // Legacy alias
+  created_at?: string;
+  createdAt?: string; // Legacy alias
+  updated_at?: string;
 }
+
+export interface WorkflowListItem {
+  id: string;
+  name: string;
+  description?: string;
+  target_platform?: string;
+  last_run_at?: string;
+  last_run_status?: JobStatus;
+  created_at: string;
+}
+
+export interface CreateWorkflowDto {
+  workspace_id: string;
+  name: string;
+  description?: string;
+  target_platform?: string;
+  steps: Omit<WorkflowStep, 'id'>[];
+}
+
+export interface UpdateWorkflowDto {
+  name?: string;
+  description?: string;
+  target_platform?: string;
+  steps?: Omit<WorkflowStep, 'id'>[];
+}
+
+// === JOB ===
 
 export interface Job {
   id: string;
-  workflowId: string;
+  workflow_id?: string;
+  workflowId?: string; // Legacy alias
   status: JobStatus;
   progress?: number;
-  logs?: string[];
-  outputs?: Content[];
-  startedAt: string;
-  completedAt?: string;
+  current_step?: number;
+  logs?: Record<string, unknown> | string[];
+  outputs?: Content[]; // Legacy field
+  started_at?: string;
+  startedAt?: string; // Legacy alias
+  completed_at?: string;
+  completedAt?: string; // Legacy alias
   error?: string;
 }
 
-export interface Activity {
-  id: string;
-  type: 'content_created' | 'workflow_run' | 'content_posted' | 'job_completed' | 'job_failed';
-  message: string;
-  timestamp: string;
-  metadata?: Record<string, unknown>;
+export interface RunWorkflowResponse {
+  job_id: string;
+  workflow_id: string;
+  status: JobStatus;
+  started_at: string;
 }
+
+// === CONTENT ===
+
+export interface Content {
+  id: string;
+  workspace_id?: string;
+  job_id?: string;
+  workflow_step_id?: string;
+  content_type?: ContentType;
+  type?: ContentType; // Legacy alias
+  title?: string;
+  description?: string;
+  data?: Record<string, unknown>;
+  status: ContentStatus;
+  created_at?: string;
+  createdAt?: string; // Legacy alias
+  updated_at?: string;
+  updatedAt?: string; // Legacy alias
+  approved_at?: string;
+  posted_at?: string;
+  // Legacy fields for frontend compatibility
+  s3Url?: string;
+  thumbnailUrl?: string;
+  quoteText?: string;
+  docxUrl?: string;
+  coverUrl?: string;
+  imageUrl?: string;
+}
+
+export interface UpdateContentDto {
+  title?: string;
+  data?: Record<string, unknown>;
+  status?: ContentStatus;
+}
+
+export interface ContentListParams {
+  workspace_id?: string;
+  job_id?: string;
+  content_type?: ContentType;
+  status?: ContentStatus;
+  limit?: number;
+}
+
+// === PLATFORM ===
 
 export interface Platform {
   id: string;
@@ -79,16 +151,111 @@ export interface Platform {
   accountName?: string;
 }
 
-export interface PostSchedule {
-  contentId: string;
-  platformId: string;
-  scheduledFor?: string; // ISO date, null means post now
+// === TOOL CONFIGS ===
+
+export interface CaptionConfig {
+  topic: string;
+  platform?: string;
+  tone?: 'professional' | 'casual' | 'humorous';
+  include_emojis?: boolean;
+  include_hashtags?: boolean;
 }
+
+export interface HashtagConfig {
+  topic: string;
+  count?: number;
+  platform?: string;
+}
+
+export interface ContentOptimizeConfig {
+  content: string;
+  goal?: 'engagement' | 'clarity' | 'seo';
+  audience?: 'professionals' | 'general';
+  platform?: string;
+}
+
+export interface BlogConfig {
+  topic: string;
+  style?: 'informative' | 'storytelling' | 'tutorial';
+}
+
+// === GENERATION API RESPONSES ===
+
+export interface BlogPostResponse {
+  id: string;
+  topic: string;
+  docx_url: string;
+  cover_url: string;
+  created_at: string;
+}
+
+export interface MotivationalPostResponse {
+  id: string;
+  topic: string;
+  quote_text: string;
+  image_url: string;
+  created_at: string;
+}
+
+export interface CaptionResponse {
+  id: string;
+  caption: string;
+  platform: string;
+  tone: string;
+  created_at: string;
+}
+
+export interface HashtagResponse {
+  id: string;
+  hashtags: string[];
+  count: number;
+  platform: string;
+  created_at: string;
+}
+
+export interface OptimizeResponse {
+  id: string;
+  original: string;
+  optimized: string;
+  goal: string;
+  platform: string;
+  created_at: string;
+}
+
+// === LEGACY TYPES (for backward compatibility) ===
+
+export interface BlogItem {
+  id: string;
+  topic: string;
+  docx_url: string;
+  cover_url: string;
+  created_at: string;
+}
+
+export interface ImageItem {
+  id: string;
+  topic: string;
+  quote_text: string;
+  image_url: string;
+  created_at: string;
+}
+
+// === ACTIVITY ===
+
+export interface Activity {
+  id: string;
+  type: 'content_created' | 'workflow_run' | 'content_posted' | 'job_completed' | 'job_failed' | 'image_created';
+  message: string;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
+}
+
+// === ANALYTICS ===
 
 export interface AnalyticsMetric {
   label: string;
   value: number;
-  change?: number; // percentage change
+  change?: number;
   trend?: 'up' | 'down' | 'neutral';
 }
 
@@ -102,7 +269,16 @@ export interface ContentPerformance {
   platform: string;
 }
 
-// API response wrappers
+// === POST SCHEDULE ===
+
+export interface PostSchedule {
+  contentId: string;
+  platformId: string;
+  scheduledFor?: string;
+}
+
+// === API RESPONSE WRAPPERS ===
+
 export interface ApiResponse<T> {
   data: T;
   success: boolean;
@@ -114,4 +290,18 @@ export interface PaginatedResponse<T> {
   total: number;
   page: number;
   pageSize: number;
+}
+
+export interface HealthResponse {
+  status: string;
+}
+
+export interface DeleteResponse {
+  message: string;
+  content_id?: string;
+  deleted_at?: string;
+}
+
+export interface ChatResponse {
+  text: string;
 }
