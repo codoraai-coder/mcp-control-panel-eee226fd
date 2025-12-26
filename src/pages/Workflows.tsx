@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkflows } from "@/hooks/use-workflows";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { CreateWorkflowDialog } from "@/components/workflows/CreateWorkflowDialog";
 import type { WorkflowListItem } from "@/types/mcp";
 
 function WorkflowCardSkeleton() {
@@ -118,6 +119,7 @@ export default function Workflows() {
   const { workspaceId } = useWorkspace();
   const { workflows, isLoading, isFetching, error, refetch, runWorkflow, isRunning } = useWorkflows();
   const [runningWorkflowId, setRunningWorkflowId] = useState<string | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const handleRun = async (workflowId: string) => {
     setRunningWorkflowId(workflowId);
@@ -192,13 +194,21 @@ export default function Workflows() {
               <RefreshCw className="h-4 w-4" />
             )}
           </Button>
-          <Button className="gradient-primary text-primary-foreground hover:opacity-90">
+          <Button 
+            className="gradient-primary text-primary-foreground hover:opacity-90"
+            onClick={() => setIsCreateDialogOpen(true)}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Create Workflow
           </Button>
         </div>
       </div>
 
+      {/* Create Workflow Dialog */}
+      <CreateWorkflowDialog 
+        open={isCreateDialogOpen} 
+        onOpenChange={setIsCreateDialogOpen} 
+      />
       {/* Workflows List */}
       {isLoading ? (
         <div className="space-y-4">
