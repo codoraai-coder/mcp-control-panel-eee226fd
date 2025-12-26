@@ -46,13 +46,15 @@ import {
 } from "@/components/ui/select";
 import { useWorkflows } from "@/hooks/use-workflows";
 import { toast } from "sonner";
-import { SortableStepItem, ToolDefinition } from "./SortableStepItem";
+import { SortableStepItem, ToolDefinition, PreviousStepInfo } from "./SortableStepItem";
 import { generateId } from "@/lib/utils";
 
 const AVAILABLE_TOOLS: ToolDefinition[] = [
   {
     value: "blog_generator",
     label: "Blog Generator",
+    produces: ["topic", "blog_content", "cover_image", "docx_url"],
+    consumes: [],
     configFields: [
       { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., AI trends in 2025" },
       { name: "style", label: "Style", type: "select", options: ["informative", "storytelling", "tutorial", "opinion"] },
@@ -61,15 +63,19 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
   {
     value: "image_generator",
     label: "Image Generator",
+    produces: ["topic", "quote_text", "image_url"],
+    consumes: ["topic"],
     configFields: [
-      { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., Motivation for success" },
+      { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., Motivation for success", canUseReference: true, referenceTypes: ["topic"] },
     ],
   },
   {
     value: "caption_generator",
     label: "Caption Generator",
+    produces: ["topic", "caption"],
+    consumes: ["topic", "blog_content"],
     configFields: [
-      { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., Product launch announcement" },
+      { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., Product launch announcement", canUseReference: true, referenceTypes: ["topic", "blog_content"] },
       { name: "tone", label: "Tone", type: "select", options: ["professional", "casual", "humorous", "inspirational"] },
       { name: "include_emojis", label: "Include Emojis", type: "checkbox", placeholder: "Add emojis to caption" },
       { name: "include_hashtags", label: "Include Hashtags", type: "checkbox", placeholder: "Add hashtags to caption" },
@@ -78,25 +84,31 @@ const AVAILABLE_TOOLS: ToolDefinition[] = [
   {
     value: "hashtag_generator",
     label: "Hashtag Generator",
+    produces: ["topic", "hashtags"],
+    consumes: ["topic", "caption"],
     configFields: [
-      { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., Digital marketing" },
+      { name: "topic", label: "Topic", type: "text", required: true, placeholder: "e.g., Digital marketing", canUseReference: true, referenceTypes: ["topic", "caption"] },
       { name: "count", label: "Number of Hashtags", type: "number", default: 10 },
     ],
   },
   {
     value: "content_optimizer",
     label: "Content Optimizer",
+    produces: ["optimized_content"],
+    consumes: ["blog_content", "caption"],
     configFields: [
-      { name: "content", label: "Content to Optimize", type: "textarea", required: true, placeholder: "Paste your content here..." },
+      { name: "content", label: "Content to Optimize", type: "textarea", required: true, placeholder: "Paste your content here...", canUseReference: true, referenceTypes: ["blog_content", "caption", "optimized_content"] },
       { name: "goal", label: "Optimization Goal", type: "select", options: ["engagement", "clarity", "seo", "brevity"] },
     ],
   },
   {
     value: "post_to_x",
     label: "Post to X (Twitter)",
+    produces: [],
+    consumes: ["caption", "optimized_content", "hashtags", "image_url"],
     configFields: [
       { name: "use_previous_content", label: "Use Generated Content", type: "checkbox", placeholder: "Use content from previous step" },
-      { name: "custom_text", label: "Custom Post Text (Optional)", type: "textarea", placeholder: "Override with custom text..." },
+      { name: "custom_text", label: "Custom Post Text (Optional)", type: "textarea", placeholder: "Override with custom text...", canUseReference: true, referenceTypes: ["caption", "optimized_content"] },
     ],
   },
 ];
@@ -341,22 +353,39 @@ export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialo
                   strategy={verticalListSortingStrategy}
                 >
                   <div className="space-y-3">
-                    {steps.map((step, index) => (
-                      <SortableStepItem
-                        key={step.id}
-                        id={step.id}
-                        stepNumber={index + 1}
-                        selectedTool={step.tool}
-                        config={step.config}
-                        tools={AVAILABLE_TOOLS}
-                        onToolChange={(tool) => updateStepTool(step.id, tool)}
-                        onConfigChange={(key, value) =>
-                          updateStepConfig(step.id, key, value)
-                        }
-                        onRemove={() => removeStep(step.id)}
-                        canRemove={steps.length > 1}
-                      />
-                    ))}
+                    {steps.map((step, index) => {
+                      // Build previousSteps info for context-aware references
+                      const previousSteps: PreviousStepInfo[] = steps
+                        .slice(0, index)
+                        .map((prevStep, prevIndex) => {
+                          const toolDef = AVAILABLE_TOOLS.find((t) => t.value === prevStep.tool);
+                          return {
+                            index: prevIndex,
+                            tool: prevStep.tool,
+                            label: toolDef?.label || prevStep.tool,
+                            produces: toolDef?.produces || [],
+                          };
+                        })
+                        .filter((s) => s.tool); // Only include steps with a tool selected
+
+                      return (
+                        <SortableStepItem
+                          key={step.id}
+                          id={step.id}
+                          stepNumber={index + 1}
+                          selectedTool={step.tool}
+                          config={step.config}
+                          tools={AVAILABLE_TOOLS}
+                          previousSteps={previousSteps}
+                          onToolChange={(tool) => updateStepTool(step.id, tool)}
+                          onConfigChange={(key, value) =>
+                            updateStepConfig(step.id, key, value)
+                          }
+                          onRemove={() => removeStep(step.id)}
+                          canRemove={steps.length > 1}
+                        />
+                      );
+                    })}
                   </div>
                 </SortableContext>
               </DndContext>
