@@ -256,10 +256,12 @@ const legacyContent = {
 
 // === UTILITY ===
 
-const healthCheck = () => apiClient<HealthResponse>("/health");
+// Health check uses generation server
+const healthCheck = () => generationApiClient<HealthResponse>("/health");
 
+// Chat uses generation server
 const chat = (text: string) =>
-  apiClient<ChatResponse>("/api/v1/chat", {
+  generationApiClient<ChatResponse>("/api/v1/chat", {
     method: "POST",
     body: JSON.stringify({ text }),
   });
