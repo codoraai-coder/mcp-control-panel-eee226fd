@@ -235,15 +235,16 @@ export default function Content() {
   const [previewContent, setPreviewContent] = useState<ContentType | null>(null);
   const { 
     blogs, 
-    images, 
+    images,
+    drafts,
     isLoading, 
     isFetching,
     error,
     refetch, 
     refetchBlogs,
     refetchImages,
-    deleteBlog, 
-    deleteImage 
+    approveContent,
+    deleteContent,
   } = useContentData();
 
   const handleAction = (action: string, content: ContentType) => {
@@ -261,7 +262,7 @@ export default function Content() {
         toast.info(`Editing: ${content.title}`);
         break;
       case 'approve':
-        toast.success(`Approved: ${content.title}`);
+        approveContent(content.id);
         break;
       case 'use':
         toast.info(`Using in workflow: ${content.title}`);
@@ -270,11 +271,7 @@ export default function Content() {
   };
 
   const handleDelete = (content: ContentType) => {
-    if (content.type === 'image') {
-      deleteImage(content.id);
-    } else {
-      deleteBlog(content.id);
-    }
+    deleteContent(content.id);
   };
 
   const handleContentGenerated = () => {
@@ -348,7 +345,7 @@ export default function Content() {
             </TabsTrigger>
             <TabsTrigger value="drafts" className="gap-2">
               <FileEdit className="h-4 w-4" />
-              Drafts
+              Drafts ({drafts.length})
             </TabsTrigger>
           </TabsList>
         </div>
@@ -418,12 +415,32 @@ export default function Content() {
         </TabsContent>
 
         <TabsContent value="drafts" className="space-y-4">
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <FileEdit className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No drafts yet</p>
-            </CardContent>
-          </Card>
+          {isLoading ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <ContentCardSkeleton />
+              <ContentCardSkeleton />
+              <ContentCardSkeleton />
+            </div>
+          ) : drafts.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {drafts.map((draft) => (
+                <ContentCard 
+                  key={draft.id} 
+                  content={draft} 
+                  onAction={handleAction} 
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <FileEdit className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No drafts yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Generated content will appear here for review</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
