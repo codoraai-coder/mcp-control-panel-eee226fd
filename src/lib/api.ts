@@ -27,7 +27,11 @@ import {
   ContentOptimizeConfig,
 } from '@/types/mcp';
 
+// Main API for workspaces, workflows, jobs, content CRUD
 export const API_BASE = "http://35.154.24.159:8000";
+
+// Generation API for blog/image generation
+export const GENERATION_API_BASE = "http://13.205.132.169:8000";
 
 // Re-export types for convenience
 export type {
@@ -82,7 +86,35 @@ async function apiClient<T>(
     throw new APIError(`API Error (${response.status}): ${errorMessage}`, response.status);
   }
 
-  // Handle empty responses (e.g., DELETE)
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+}
+
+// Separate client for generation endpoints (different server)
+async function generationApiClient<T>(
+  endpoint: string,
+  options?: RequestInit
+): Promise<T> {
+  const response = await fetch(`${GENERATION_API_BASE}${endpoint}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    let errorMessage: string;
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.detail || errorText;
+    } catch {
+      errorMessage = errorText;
+    }
+    throw new APIError(`API Error (${response.status}): ${errorMessage}`, response.status);
+  }
+
   const text = await response.text();
   return text ? JSON.parse(text) : null;
 }
@@ -181,31 +213,31 @@ const content = {
 
 const generate = {
   blogPost: (topic: string) =>
-    apiClient<BlogPostResponse>("/api/v1/generate/blog_post", {
+    generationApiClient<BlogPostResponse>("/api/v1/generate/blog_post", {
       method: "POST",
       body: JSON.stringify({ topic }),
     }),
 
   motivationalPost: (topic: string) =>
-    apiClient<MotivationalPostResponse>("/api/v1/generate/motivational_post", {
+    generationApiClient<MotivationalPostResponse>("/api/v1/generate/motivational_post", {
       method: "POST",
       body: JSON.stringify({ topic }),
     }),
 
   caption: (config: CaptionConfig) =>
-    apiClient<CaptionResponse>("/api/v1/generate/caption", {
+    generationApiClient<CaptionResponse>("/api/v1/generate/caption", {
       method: "POST",
       body: JSON.stringify(config),
     }),
 
   hashtags: (config: HashtagConfig) =>
-    apiClient<HashtagResponse>("/api/v1/generate/hashtags", {
+    generationApiClient<HashtagResponse>("/api/v1/generate/hashtags", {
       method: "POST",
       body: JSON.stringify(config),
     }),
 
   optimize: (config: ContentOptimizeConfig) =>
-    apiClient<OptimizeResponse>("/api/v1/generate/optimize", {
+    generationApiClient<OptimizeResponse>("/api/v1/generate/optimize", {
       method: "POST",
       body: JSON.stringify(config),
     }),
@@ -214,12 +246,12 @@ const generate = {
 // === LEGACY CONTENT ENDPOINTS ===
 
 const legacyContent = {
-  listBlogs: () => apiClient<BlogItem[]>("/api/v1/content/blogs"),
-  listImages: () => apiClient<ImageItem[]>("/api/v1/content/images"),
+  listBlogs: () => generationApiClient<BlogItem[]>("/api/v1/content/blogs"),
+  listImages: () => generationApiClient<ImageItem[]>("/api/v1/content/images"),
   deleteBlog: (id: string) =>
-    apiClient<void>(`/api/v1/content/blogs/${id}`, { method: "DELETE" }),
+    generationApiClient<void>(`/api/v1/content/blogs/${id}`, { method: "DELETE" }),
   deleteImage: (id: string) =>
-    apiClient<void>(`/api/v1/content/images/${id}`, { method: "DELETE" }),
+    generationApiClient<void>(`/api/v1/content/images/${id}`, { method: "DELETE" }),
 };
 
 // === UTILITY ===
