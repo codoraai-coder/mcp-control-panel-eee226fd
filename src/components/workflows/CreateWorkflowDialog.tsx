@@ -47,6 +47,7 @@ import {
 import { useWorkflows } from "@/hooks/use-workflows";
 import { toast } from "sonner";
 import { SortableStepItem, ToolDefinition } from "./SortableStepItem";
+import { generateId } from "@/lib/utils";
 
 const AVAILABLE_TOOLS: ToolDefinition[] = [
   {
@@ -115,7 +116,7 @@ export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialo
   const { createWorkflow, isCreating } = useWorkflows();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [steps, setSteps] = useState<WorkflowStepState[]>([
-    { id: crypto.randomUUID(), tool: "", config: {} },
+    { id: generateId(), tool: "", config: {} },
   ]);
   const [stepsError, setStepsError] = useState<string | null>(null);
 
@@ -136,7 +137,7 @@ export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialo
   });
 
   const addStep = () => {
-    setSteps((prev) => [...prev, { id: crypto.randomUUID(), tool: "", config: {} }]);
+    setSteps((prev) => [...prev, { id: generateId(), tool: "", config: {} }]);
     setStepsError(null);
   };
 
@@ -222,7 +223,7 @@ export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialo
       });
       toast.success("Workflow created successfully");
       form.reset();
-      setSteps([{ id: crypto.randomUUID(), tool: "", config: {} }]);
+      setSteps([{ id: generateId(), tool: "", config: {} }]);
       onOpenChange(false);
     } catch (error) {
       toast.error("Failed to create workflow", {
@@ -236,7 +237,7 @@ export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialo
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       form.reset();
-      setSteps([{ id: crypto.randomUUID(), tool: "", config: {} }]);
+      setSteps([{ id: generateId(), tool: "", config: {} }]);
       setStepsError(null);
     }
     onOpenChange(newOpen);
