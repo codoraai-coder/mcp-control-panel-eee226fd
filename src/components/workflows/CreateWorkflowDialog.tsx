@@ -32,10 +32,21 @@ import {
 import { useWorkflows } from "@/hooks/use-workflows";
 import { toast } from "sonner";
 
+const AVAILABLE_TOOLS = [
+  { value: "blog_generator", label: "Blog Generator" },
+  { value: "caption_generator", label: "Caption Generator" },
+  { value: "content_optimizer", label: "Content Optimizer" },
+  { value: "hashtag_generator", label: "Hashtag Generator" },
+  { value: "image_generator", label: "Image Generator" },
+] as const;
+
 const createWorkflowSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
   description: z.string().max(500, "Description must be less than 500 characters").optional(),
   target_platform: z.enum(["linkedin", "twitter", "instagram", "facebook"]).optional(),
+  tool: z.enum(["blog_generator", "caption_generator", "content_optimizer", "hashtag_generator", "image_generator"], {
+    required_error: "Please select a tool",
+  }),
 });
 
 type CreateWorkflowForm = z.infer<typeof createWorkflowSchema>;
@@ -55,12 +66,14 @@ export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialo
       name: "",
       description: "",
       target_platform: undefined,
+      tool: undefined,
     },
   });
 
   const onSubmit = async (data: CreateWorkflowForm) => {
     setIsSubmitting(true);
     try {
+      const toolLabel = AVAILABLE_TOOLS.find(t => t.value === data.tool)?.label || data.tool;
       await createWorkflow({
         name: data.name,
         description: data.description || undefined,
@@ -68,8 +81,8 @@ export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialo
         steps: [
           {
             order: 1,
-            name: "Step 1",
-            tool_name: "placeholder",
+            name: toolLabel,
+            tool_name: data.tool,
             config: {},
           },
         ],
@@ -130,6 +143,30 @@ export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialo
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="tool"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Starting Tool</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a tool" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {AVAILABLE_TOOLS.map((tool) => (
+                        <SelectItem key={tool.value} value={tool.value}>
+                          {tool.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
