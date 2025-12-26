@@ -39,6 +39,7 @@ export interface ToolDefinition {
   configFields: ConfigField[];
   produces: string[];
   consumes: string[];
+  requiresContentFromPreviousStep?: boolean;
 }
 
 export interface PreviousStepInfo {
