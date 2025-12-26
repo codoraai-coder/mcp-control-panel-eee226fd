@@ -1,93 +1,107 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { Content, ContentListParams, UpdateContentDto, ContentStatus, ContentType as ContentTypeEnum } from "@/types/mcp";
+import type { BlogItem, ImageItem, Content, ContentStatus } from "@/types/mcp";
 import { toast } from "sonner";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
 
-export function useContentData(params: ContentListParams = {}) {
-  const queryClient = useQueryClient();
-  const { workspace } = useWorkspace();
-
-  // Fetch all content with optional filters
-  const contentQuery = useQuery({
-    queryKey: ["content", params],
-    queryFn: () => api.content.list(params),
-  });
-
-  // Fetch pending content for the current workspace
-  const pendingQuery = useQuery({
-    queryKey: ["content", "pending", workspace?.id],
-    queryFn: () => workspace?.id 
-      ? api.content.getPending(workspace.id) 
-      : Promise.resolve([]),
-    enabled: !!workspace?.id,
-  });
-
-  // Get single content item
-  const useContentItem = (contentId: string) => {
-    return useQuery({
-      queryKey: ["content", contentId],
-      queryFn: () => api.content.get(contentId),
-      enabled: !!contentId,
-    });
+// Transform BlogItem to Content format for UI compatibility
+function blogToContent(blog: BlogItem): Content {
+  return {
+    id: blog.id,
+    title: blog.topic,
+    type: 'blog',
+    content_type: 'blog',
+    status: 'approved' as ContentStatus,
+    createdAt: blog.created_at,
+    created_at: blog.created_at,
+    docxUrl: blog.docx_url,
+    coverUrl: blog.cover_url,
+    imageUrl: blog.cover_url,
   };
+}
 
-  // Update content mutation
-  const updateContentMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateContentDto }) =>
-      api.content.update(id, data),
+// Transform ImageItem to Content format for UI compatibility
+function imageToContent(image: ImageItem): Content {
+  return {
+    id: image.id,
+    title: image.topic,
+    type: 'image',
+    content_type: 'image',
+    status: 'approved' as ContentStatus,
+    createdAt: image.created_at,
+    created_at: image.created_at,
+    imageUrl: image.image_url,
+    thumbnailUrl: image.image_url,
+    quoteText: image.quote_text,
+  };
+}
+
+export function useContentData() {
+  const queryClient = useQueryClient();
+
+  // Fetch blogs using legacy API
+  const blogsQuery = useQuery({
+    queryKey: ["blogs"],
+    queryFn: () => api.legacy.listBlogs(),
+  });
+
+  // Fetch images using legacy API
+  const imagesQuery = useQuery({
+    queryKey: ["images"],
+    queryFn: () => api.legacy.listImages(),
+  });
+
+  // Delete blog mutation
+  const deleteBlogMutation = useMutation({
+    mutationFn: (id: string) => api.legacy.deleteBlog(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["content"] });
-      toast.success("Content updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["blogs"] });
+      toast.success("Blog deleted successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update content: ${error.message}`);
+      toast.error(`Failed to delete blog: ${error.message}`);
     },
   });
 
-  // Approve content mutation
-  const approveContentMutation = useMutation({
-    mutationFn: api.content.approve,
+  // Delete image mutation
+  const deleteImageMutation = useMutation({
+    mutationFn: (id: string) => api.legacy.deleteImage(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["content"] });
-      toast.success("Content approved successfully");
+      queryClient.invalidateQueries({ queryKey: ["images"] });
+      toast.success("Image deleted successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to approve content: ${error.message}`);
+      toast.error(`Failed to delete image: ${error.message}`);
     },
   });
 
-  // Delete content mutation
-  const deleteContentMutation = useMutation({
-    mutationFn: api.content.delete,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["content"] });
-      toast.success("Content deleted successfully");
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to delete content: ${error.message}`);
-    },
-  });
-
-  // Derive blogs and images from content
-  const allContent = contentQuery.data ?? [];
-  const blogs = allContent.filter((c) => c.type === "blog" || c.content_type === "blog");
-  const images = allContent.filter((c) => c.type === "image" || c.content_type === "image");
+  // Transform raw data to Content format
+  const blogs: Content[] = (blogsQuery.data ?? []).map(blogToContent);
+  const images: Content[] = (imagesQuery.data ?? []).map(imageToContent);
+  const allContent = [...blogs, ...images];
   const drafts = allContent.filter((c) => c.status === "draft");
   const approved = allContent.filter((c) => c.status === "approved");
-  const pending = pendingQuery.data ?? [];
 
   // Combined loading state
-  const isLoading = contentQuery.isLoading;
-  const isFetching = contentQuery.isFetching || pendingQuery.isFetching;
+  const isLoading = blogsQuery.isLoading || imagesQuery.isLoading;
+  const isFetching = blogsQuery.isFetching || imagesQuery.isFetching;
 
   // Combined error
-  const error = contentQuery.error || pendingQuery.error;
+  const error = blogsQuery.error || imagesQuery.error;
 
   // Refetch all content
   const refetch = () => {
-    contentQuery.refetch();
-    pendingQuery.refetch();
+    blogsQuery.refetch();
+    imagesQuery.refetch();
+  };
+
+  // Delete content - determine type and call appropriate mutation
+  const deleteContent = (id: string) => {
+    const blog = blogs.find(b => b.id === id);
+    if (blog) {
+      deleteBlogMutation.mutate(id);
+    } else {
+      deleteImageMutation.mutate(id);
+    }
   };
 
   return {
@@ -97,7 +111,7 @@ export function useContentData(params: ContentListParams = {}) {
     images,
     drafts,
     approved,
-    pending,
+    pending: [],
 
     // Loading states
     isLoading,
@@ -106,50 +120,22 @@ export function useContentData(params: ContentListParams = {}) {
 
     // Actions
     refetch,
-    refetchBlogs: () => contentQuery.refetch(),
-    refetchImages: () => contentQuery.refetch(),
+    refetchBlogs: () => blogsQuery.refetch(),
+    refetchImages: () => imagesQuery.refetch(),
     
     // Mutations
-    updateContent: (id: string, data: UpdateContentDto) =>
-      updateContentMutation.mutate({ id, data }),
-    approveContent: (id: string) => approveContentMutation.mutate(id),
-    deleteContent: (id: string) => deleteContentMutation.mutate(id),
+    deleteContent,
+    deleteBlog: (id: string) => deleteBlogMutation.mutate(id),
+    deleteImage: (id: string) => deleteImageMutation.mutate(id),
 
-    // Legacy compatibility - deleteBlog/deleteImage now use unified delete
-    deleteBlog: (id: string) => deleteContentMutation.mutate(id),
-    deleteImage: (id: string) => deleteContentMutation.mutate(id),
+    // Legacy approve - no-op for now since legacy API doesn't support it
+    approveContent: (id: string) => {
+      toast.info("Approve not supported in legacy API");
+    },
 
     // Mutation states
-    isUpdating: updateContentMutation.isPending,
-    isApproving: approveContentMutation.isPending,
-    isDeleting: deleteContentMutation.isPending,
-    isDeletingBlog: deleteContentMutation.isPending,
-    isDeletingImage: deleteContentMutation.isPending,
-
-    // Hook for single item
-    useContentItem,
+    isDeleting: deleteBlogMutation.isPending || deleteImageMutation.isPending,
+    isDeletingBlog: deleteBlogMutation.isPending,
+    isDeletingImage: deleteImageMutation.isPending,
   };
-}
-
-// Separate hook for fetching content by type
-export function useContentByType(type: ContentTypeEnum) {
-  return useContentData({ content_type: type });
-}
-
-// Separate hook for fetching content by status
-export function useContentByStatus(status: ContentStatus) {
-  return useContentData({ status });
-}
-
-// Hook for pending approval content
-export function usePendingContent() {
-  const { workspace } = useWorkspace();
-
-  return useQuery({
-    queryKey: ["content", "pending", workspace?.id],
-    queryFn: () => workspace?.id
-      ? api.content.getPending(workspace.id)
-      : Promise.resolve([]),
-    enabled: !!workspace?.id,
-  });
 }
