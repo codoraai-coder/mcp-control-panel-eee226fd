@@ -27,7 +27,7 @@ import {
   ContentOptimizeConfig,
 } from '@/types/mcp';
 
-export const API_BASE = "http://13.205.132.169:8000";
+export const API_BASE = "http://35.154.24.159:8000";
 
 // Re-export types for convenience
 export type {
