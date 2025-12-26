@@ -149,7 +149,7 @@ export default function WorkflowDetail() {
                     </div>
                     <div className="flex-1">
                       <p className="font-medium">{step.name}</p>
-                      <p className="text-sm text-muted-foreground">Tool: {step.toolName}</p>
+                      <p className="text-sm text-muted-foreground">Tool: {step.tool_name || step.toolName}</p>
                     </div>
                     {stepStatusIcons[jobStatus === 'completed' ? 'completed' : index === 0 && running ? 'running' : 'pending']}
                   </div>
@@ -165,9 +165,9 @@ export default function WorkflowDetail() {
             </CardHeader>
             <CardContent>
               <div className="bg-muted rounded-lg p-4 font-mono text-sm max-h-64 overflow-y-auto">
-                {mockJob.logs?.map((log, i) => (
+                {Array.isArray(mockJob.logs) && mockJob.logs.map((log, i) => (
                   <div key={i} className="text-muted-foreground hover:text-foreground">
-                    {log}
+                    {String(log)}
                   </div>
                 ))}
               </div>
