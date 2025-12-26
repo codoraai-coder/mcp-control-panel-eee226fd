@@ -48,7 +48,7 @@ export interface PreviousStepInfo {
   produces: string[];
 }
 
-interface StepReferenceValue {
+export interface StepReferenceValue {
   type: 'manual' | 'step_reference';
   step_index?: number;
   field?: string;
