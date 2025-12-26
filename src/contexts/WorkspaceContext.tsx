@@ -15,6 +15,7 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const WORKSPACE_STORAGE_KEY = 'mcp_workspace_id';
+const DEFAULT_WORKSPACE_ID = '4ebdc9fe-1c7e-4138-a7fb-0186db2c4212';
 
 interface WorkspaceProviderProps {
   children: ReactNode;
@@ -23,11 +24,11 @@ interface WorkspaceProviderProps {
 export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [workspaceId, setWorkspaceIdState] = useState<string | null>(() => {
-    // Initialize from localStorage
+    // Initialize from localStorage, fallback to hardcoded default
     if (typeof window !== 'undefined') {
-      return localStorage.getItem(WORKSPACE_STORAGE_KEY);
+      return localStorage.getItem(WORKSPACE_STORAGE_KEY) || DEFAULT_WORKSPACE_ID;
     }
-    return null;
+    return DEFAULT_WORKSPACE_ID;
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
