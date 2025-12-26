@@ -183,30 +183,30 @@ const content = {
         .filter(([, v]) => v !== undefined)
         .map(([k, v]) => [k, String(v)])
     );
-    return apiClient<Content[]>(`/api/content/?${query}`);
+    return generationApiClient<Content[]>(`/api/content/?${query}`);
   },
 
   get: (contentId: string) =>
-    apiClient<Content>(`/api/content/${contentId}`),
+    generationApiClient<Content>(`/api/content/${contentId}`),
 
   update: (contentId: string, data: UpdateContentDto) =>
-    apiClient<Content>(`/api/content/${contentId}`, {
+    generationApiClient<Content>(`/api/content/${contentId}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
 
   approve: (contentId: string) =>
-    apiClient<Content>(`/api/content/${contentId}/approve`, {
+    generationApiClient<Content>(`/api/content/${contentId}/approve`, {
       method: "POST",
     }),
 
   delete: (contentId: string) =>
-    apiClient<DeleteResponse>(`/api/content/${contentId}`, {
+    generationApiClient<DeleteResponse>(`/api/content/${contentId}`, {
       method: "DELETE",
     }),
 
   getPending: (workspaceId: string, limit = 20) =>
-    apiClient<Content[]>(`/api/content/workspace/${workspaceId}/pending?limit=${limit}`),
+    generationApiClient<Content[]>(`/api/content/workspace/${workspaceId}/pending?limit=${limit}`),
 };
 
 // === GENERATION API (Direct Tools) ===
