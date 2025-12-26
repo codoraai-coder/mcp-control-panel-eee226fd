@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/select";
 import { useWorkflows } from "@/hooks/use-workflows";
 import { toast } from "sonner";
-import { SortableStepItem, ToolDefinition, PreviousStepInfo } from "./SortableStepItem";
+import { SortableStepItem, ToolDefinition, PreviousStepInfo, StepReferenceValue } from "./SortableStepItem";
 import { generateId } from "@/lib/utils";
 
 const AVAILABLE_TOOLS: ToolDefinition[] = [
@@ -211,9 +211,20 @@ export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialo
       const toolDef = AVAILABLE_TOOLS.find((t) => t.value === step.tool);
       if (toolDef) {
         for (const field of toolDef.configFields) {
-          if (field.required && !step.config[field.name]) {
-            setStepsError(`Please fill in the "${field.label}" field for ${toolDef.label}`);
-            return false;
+          if (field.required) {
+            const directValue = step.config[field.name];
+            const sourceRef = step.config[`${field.name}_source`] as StepReferenceValue | undefined;
+            
+            // Field is valid if it has a direct value OR it's using a step reference
+            const hasDirectValue = directValue !== undefined && directValue !== '';
+            const hasStepReference = sourceRef?.type === 'step_reference' && 
+                                     sourceRef.step_index !== undefined && 
+                                     sourceRef.field;
+            
+            if (!hasDirectValue && !hasStepReference) {
+              setStepsError(`Please fill in the "${field.label}" field for ${toolDef.label}`);
+              return false;
+            }
           }
         }
       }
