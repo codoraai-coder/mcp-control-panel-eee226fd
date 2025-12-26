@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { PostingJob } from "@/types/mcp";
 import { PostingStatusBadge } from "./PostingStatusBadge";
 import { 
@@ -9,15 +17,22 @@ import {
   CheckCircle, 
   XCircle, 
   RotateCcw,
-  Image as ImageIcon 
+  Image as ImageIcon,
+  CalendarClock,
+  Clock,
+  X
 } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface PostingJobCardProps {
   job: PostingJob;
   onMarkPosted: (jobId: string) => Promise<unknown>;
   onMarkFailed: (jobId: string, message?: string) => Promise<unknown>;
   onRetry: (jobId: string) => Promise<unknown>;
+  onSchedule?: (jobId: string, scheduledFor: Date) => Promise<unknown>;
+  onCancelSchedule?: (jobId: string) => Promise<unknown>;
   isLoading?: boolean;
 }
 
@@ -26,14 +41,29 @@ export function PostingJobCard({
   onMarkPosted, 
   onMarkFailed, 
   onRetry,
+  onSchedule,
+  onCancelSchedule,
   isLoading 
 }: PostingJobCardProps) {
   const [copied, setCopied] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    job.scheduled_for ? new Date(job.scheduled_for) : undefined
+  );
+  const [selectedTime, setSelectedTime] = useState<string>(
+    job.scheduled_for 
+      ? format(new Date(job.scheduled_for), "HH:mm") 
+      : format(new Date(), "HH:mm")
+  );
+  
   const { prepared_payload: payload } = job;
   
   const charCount = payload.post_text.length;
   const maxChars = payload.formatting_hints.max_length;
   const isOverLimit = charCount > maxChars;
+
+  const isScheduled = !!job.scheduled_for;
+  const scheduledDate = job.scheduled_for ? new Date(job.scheduled_for) : null;
 
   const handleCopy = async () => {
     try {
@@ -48,6 +78,42 @@ export function PostingJobCard({
 
   const handleOpenX = () => {
     window.open("https://x.com/compose/post", "_blank");
+  };
+
+  const handleSchedule = async () => {
+    if (!selectedDate || !onSchedule) return;
+    
+    // Combine date and time
+    const [hours, minutes] = selectedTime.split(":").map(Number);
+    const scheduledDateTime = new Date(selectedDate);
+    scheduledDateTime.setHours(hours, minutes, 0, 0);
+    
+    // Validate future date
+    if (scheduledDateTime <= new Date()) {
+      toast.error("Please select a future date and time");
+      return;
+    }
+    
+    try {
+      await onSchedule(job.id, scheduledDateTime);
+      setScheduleOpen(false);
+      toast.success("Post scheduled!", {
+        description: `Scheduled for ${format(scheduledDateTime, "PPP 'at' p")}`,
+      });
+    } catch {
+      toast.error("Failed to schedule post");
+    }
+  };
+
+  const handleCancelSchedule = async () => {
+    if (!onCancelSchedule) return;
+    try {
+      await onCancelSchedule(job.id);
+      setSelectedDate(undefined);
+      toast.success("Schedule cancelled");
+    } catch {
+      toast.error("Failed to cancel schedule");
+    }
   };
 
   return (
@@ -70,6 +136,29 @@ export function PostingJobCard({
       </CardHeader>
       
       <CardContent className="space-y-4">
+        {/* Scheduled Banner */}
+        {isScheduled && scheduledDate && job.status === "ready" && (
+          <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium text-primary">
+                Scheduled for {format(scheduledDate, "PPP 'at' p")}
+              </span>
+            </div>
+            {onCancelSchedule && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-primary hover:text-primary"
+                onClick={handleCancelSchedule}
+                disabled={isLoading}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* Post Content Preview */}
         <div className="p-4 rounded-lg bg-muted/50 space-y-3">
           <p className="text-sm whitespace-pre-wrap">{payload.post_text}</p>
@@ -155,6 +244,68 @@ export function PostingJobCard({
                 <ExternalLink className="h-4 w-4 mr-1" />
                 Open X
               </Button>
+
+              {/* Schedule Button */}
+              {onSchedule && (
+                <Popover open={scheduleOpen} onOpenChange={setScheduleOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isLoading}
+                    >
+                      <CalendarClock className="h-4 w-4 mr-1" />
+                      {isScheduled ? "Reschedule" : "Schedule"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="p-4 space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Select Date</Label>
+                        <Calendar
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={setSelectedDate}
+                          disabled={(date) => date < new Date()}
+                          initialFocus
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium flex items-center gap-2">
+                          <Clock className="h-4 w-4" />
+                          Select Time
+                        </Label>
+                        <Input
+                          type="time"
+                          value={selectedTime}
+                          onChange={(e) => setSelectedTime(e.target.value)}
+                          className="w-full"
+                        />
+                      </div>
+                      
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={handleSchedule}
+                          disabled={!selectedDate || isLoading}
+                        >
+                          <CalendarClock className="h-4 w-4 mr-1" />
+                          Schedule Post
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setScheduleOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
               
               <Button
                 variant="default"

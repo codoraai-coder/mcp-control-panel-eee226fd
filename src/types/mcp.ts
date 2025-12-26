@@ -338,4 +338,5 @@ export interface PostingJob {
   retry_count: number;
   created_at: string;
   posted_at: string | null;
+  scheduled_for?: string | null;
 }
