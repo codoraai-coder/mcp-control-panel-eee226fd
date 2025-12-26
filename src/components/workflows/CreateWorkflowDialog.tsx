@@ -236,14 +236,17 @@ export function CreateWorkflowDialog({ open, onOpenChange }: CreateWorkflowDialo
     return true;
   };
 
+  // Hardcoded default workspace ID as fallback
+  const DEFAULT_WORKSPACE_ID = '4ebdc9fe-1c7e-4138-a7fb-0186db2c4212';
+
   // Transform step config to auto-inject workspace_id and content_id reference for post_to_x
   const transformStepConfig = (step: WorkflowStepState, index: number): Record<string, unknown> => {
-    const toolDef = AVAILABLE_TOOLS.find(t => t.value === step.tool);
     const config = { ...step.config };
     
     // Auto-inject workspace_id and content_id reference for post_to_x
     if (step.tool === 'post_to_x') {
-      config.workspace_id = workspaceId;
+      // Always ensure workspace_id is set with hardcoded fallback
+      config.workspace_id = workspaceId || DEFAULT_WORKSPACE_ID;
       
       // Auto-reference content_id from previous step if not manually set
       if (!config.content_id && !config.content_id_source && index > 0) {
